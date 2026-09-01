@@ -97,19 +97,35 @@ These are non-obvious API facts discovered the hard way - re-derive them from th
 actual DLLs rather than trusting old assumptions if the game/DLC updates.
 
 - **Naval missions use a different agent-stat model than land missions.** Every
-  per-agent combat stat (max health, health regen, melee/ranged dmg, stagger,
-  accuracy, reload, movement, ...) is produced by an override of
+  per-agent, per-mission combat stat (health regen, melee/ranged dmg, stagger, accuracy,
+  reload, movement, ...) is produced by an override of
   `TaleWorlds.MountAndBlade.AgentStatCalculateModel`, which is abstract - each
   mission type registers its own concrete subclass:
   - `SandBox.GameComponents.SandboxAgentStatCalculateModel` - land missions
   - `NavalDLC.GameComponents.NavalAgentStatCalculateModel` - naval missions
   - `NavalDLC.ComponentInterfaces.NavalCustomBattleAgentStatCalculateModel` - naval custom battles
 
-  Harmony can only patch concrete methods, not the abstract contract, so **every
-  agent-stat effect needs a Harmony postfix on all three classes**, or it will
-  silently do nothing during naval battles. Share the actual bonus logic in one
-  private helper and call it from three thin `[HarmonyPatch]` postfixes (one per
-  class) - don't duplicate the logic three times.
+  Harmony can only patch concrete methods, not the abstract contract, so **any effect
+  patching one of this family's methods needs a Harmony postfix on all three classes**,
+  or it will silently do nothing during naval battles. Share the actual bonus logic in
+  one private helper and call it from three thin `[HarmonyPatch]` postfixes (one per
+  class) - don't duplicate the logic three times. (Max Health no longer uses this family
+  at all - see the `DefaultCharacterStatsModel`/`MaxHitpoints` bullet below - but this
+  pattern still applies to any future mission-only combat-stat effect.)
+- **Not every "character stat" is mission-scoped - some are campaign-level and apply
+  everywhere by construction, with no land/naval split to worry about.**
+  `TaleWorlds.CampaignSystem.GameComponents.DefaultCharacterStatsModel.MaxHitpoints(CharacterObject,
+  bool) : ExplainedNumber` is the canonical source for a character's max HP - the same
+  number shown on the character sheet, and (per Bannerlord's wound/recovery mechanic - a
+  partially-recovered hero enters a mission below full health as a fraction of this same
+  number) very likely what mission-level `GetEffectiveMaxHealth` derives its baseline
+  from too, though that exact relationship isn't confirmed (see bugHistory.md 2026-09-01
+  "converted from flat bonus to percentage" for what to verify if it turns out wrong).
+  `ExplainedNumber` is a struct with its own `AddFactor(float, TextObject)` method -
+  vanilla's real mechanism for a percentage-style stat modifier, showing up correctly in
+  the game's own stat-breakdown tooltips - prefer it over manually multiplying a raw
+  float (like `RangedDamageControlPatch` does, for lack of an `ExplainedNumber` return
+  type on its target method) whenever the patched method actually returns one.
 - **Only Heroes expose attribute values.** `Hero.GetAttributeValue(CharacterAttribute)`
   (e.g. `TaleWorlds.Core.DefaultCharacterAttributes.Endurance`) is the only way to
   read a Vigor/Control/Endurance/Cunning/Social/Intelligence value. Regular troops
@@ -301,6 +317,13 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
 
 ## Open items
 
-None currently - Max Health / Endurance, Slice Through, Ranged Damage / Control, and
-Companion Limit / Social are all confirmed working (see bugHistory.md 2026-09-01
-entries). Next new effect starts with a clean slate.
+None currently. Max Health / Endurance (now percentage-based via
+`DefaultCharacterStatsModel.MaxHitpoints` - confirmed in-mission health derives from it
+correctly, see bugHistory.md 2026-09-01), Slice Through, Ranged Damage / Control, and
+Companion Limit / Social are all confirmed working. Next new effect starts with a clean
+slate.
+
+A campaign-map crash was reported the same day as the Max Health conversion but
+confirmed via `dotnet-dump` to be unrelated to this mod (vanilla siege/army logic, no
+`TestMod` code anywhere on the faulting stack) - see bugHistory.md 2026-09-01 "Campaign-
+map crash, unrelated to this mod". Not an open item for this mod.

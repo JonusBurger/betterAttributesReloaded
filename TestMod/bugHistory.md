@@ -488,3 +488,73 @@ this effect either), bonus-per-point default 0.5, selectable in exact 0.5 steps.
 
 **Confirmed working (same day):** tested in-game and behaves as intended, floor behavior
 included. Consider this effect done.
+
+## 2026-09-01 - Max Health / Endurance converted from flat bonus to percentage
+
+Per the project owner's request, converted from
+`maxHealth = baseGameMaxHealth + bonusPerPoint * Endurance` (flat, default 5 HP/point) to
+`maxHealth = baseGameMaxHealth * (1 + bonusPerPoint * Endurance)` (percentage, default
+5%/point). This also meant retargeting the patch entirely, based on the predecessor
+mod's reference implementation:
+
+- **Old:** three Harmony postfixes on the mission-level
+  `AgentStatCalculateModel.GetEffectiveMaxHealth` overrides (land/naval/naval-custom-
+  battle), directly adding a flat amount to the computed float.
+- **New:** one Harmony postfix on the campaign-level
+  `DefaultCharacterStatsModel.MaxHitpoints(CharacterObject, bool) : ExplainedNumber`,
+  using vanilla's own `ExplainedNumber.AddFactor(float, TextObject)` for a proper
+  percentage modifier (shows up correctly in the game's stat breakdown tooltips, unlike
+  a manually-multiplied float). Confirmed via reflection that both the method and
+  `ExplainedNumber.AddFactor`'s signature still exist in the installed game (v1.4.8) and
+  match the predecessor mod's reference exactly. Like `DefaultClanTierModel`, there's
+  only one concrete `CharacterStatsModel` implementation - no land/naval split needed.
+
+**Real, unresolved uncertainty - read before assuming this "just works" the same as
+before:** `MaxHitpoints` is the canonical value behind the character sheet's max HP, and
+(per Bannerlord's known wound/recovery mechanic - a partially-recovered hero enters a
+mission below full health as a fraction of this same number) is very likely also what
+`GetEffectiveMaxHealth` derives its in-mission baseline from. But that specific
+relationship could not be confirmed from reflection alone (method bodies aren't
+decompiled - see CLAUDE.md "Conventions"). **If in-battle max health stops being
+noticeably boosted after this change while the character sheet number still visibly goes
+up, that assumption was wrong** - the old three land/naval postfixes would need to come
+back *alongside* this one (both models contributing), not have been replaced by it.
+Verify both: the character sheet's max HP with a few points in Endurance, *and* that a
+hero's in-mission health bar is still visibly larger than vanilla.
+
+**Confirmed (same day): a land battle showed the mod working as intended.** The
+uncertainty above is resolved - `GetEffectiveMaxHealth` does derive from
+`DefaultCharacterStatsModel.MaxHitpoints`, in-mission health is boosted correctly by the
+percentage bonus, and the single campaign-level patch is sufficient on its own (the old
+three land/naval mission-level postfixes do **not** need to come back). Consider this
+effect done.
+
+## 2026-09-01 - Campaign-map crash, unrelated to this mod (evidence-based, not assumed)
+
+Reported right after the Max Health rewrite above, so it looked at first like it might be
+the same pattern as every earlier crash this session. `dotnet-dump` says otherwise this
+time - the fault site is entirely vanilla, with nothing from this mod anywhere on the
+stack:
+
+```
+TaleWorlds.CampaignSystem.Army.FindBestGatheringSettlementAndMoveTheLeader(Settlement)
+TaleWorlds.CampaignSystem.Army.OnSiegeStarted(SiegeEvent)
+TaleWorlds.CampaignSystem.CampaignEvents.OnSiegeEventStarted(SiegeEvent)
+... (siege event dispatch chain) ...
+TaleWorlds.CampaignSystem.EncounterManager.StartSettlementEncounter(...)
+TaleWorlds.CampaignSystem.Campaign.Tick()
+```
+
+No `DefaultCharacterStatsModel`, `MaxHitpoints`, `ExplainedNumber`, or any `TestMod.*`
+type appears anywhere in the faulting thread's stack - unlike every prior crash, where
+this mod's code (or a structural side effect of it) was directly on the stack. Also
+different: exception parameters were `0x0`/`0x118` (a null object dereferenced at a
+280-byte field offset) rather than the `0x0`/`0x0` bare-null-pointer pattern every
+earlier crash showed.
+
+**Conclusion: this looks like a pre-existing vanilla or cross-mod issue in siege-
+triggering/army-gathering logic, not caused by this mod** - stated based on the dump's
+evidence, not assumed just because it followed a recent change. Not investigated further
+(no evidence points at this mod's code, so there's nothing here to fix). If it recurs and
+someone wants certainty, the standard isolation test applies: reproduce without TestMod
+loaded.
