@@ -210,6 +210,19 @@ actual DLLs rather than trusting old assumptions if the game/DLC updates.
   `out`-parameter methods (`inflictedDamage`, `baseMagnitude`, `specialMagnitude`, etc.)
   need `ref` in a Harmony patch signature, not `out` - Harmony requires `ref` for any
   mutated parameter regardless of the original's `ref`/`out`/`in`.
+- **MCM's `SettingPropertyFloatingIntegerAttribute` has no step-size option** - confirmed
+  by reflecting directly on `MCMv5.dll` (`bannerlord.mcm` NuGet package): its constructor
+  is just `(displayName, minValue, maxValue, valueFormat)`. A slider using it can land on
+  any value in range, not fixed increments. For a setting that must only take specific
+  steps (e.g. 0.5 increments), use `MCM.Common.Dropdown<T>` instead - it's fully generic
+  (`Dropdown<float>` works fine, not just `Dropdown<string>`), constructed from an
+  `IEnumerable<T>` of the allowed values plus a default `selectedIndex`, and exposes
+  `SelectedValue`/`SelectedIndex`. See `CompanionLimitSocialBonusPerPointDropdown`.
+- **Not every effect is a mission/combat effect.** `DefaultClanTierModel.GetCompanionLimit`
+  (companion limit) is a campaign-map mechanic with no mission involved at all - unlike
+  every combat model so far, there's only one concrete `ClanTierModel` implementation
+  (no land/naval split), so it needs exactly one Harmony patch. Verify this kind of effect
+  on the clan screen, not in a battle.
 
 ## Conventions
 
@@ -288,6 +301,6 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
 
 ## Open items
 
-None currently - Slice Through and Ranged Damage / Control are both confirmed stable in
-land and naval combat (see bugHistory.md 2026-09-01 entries). Max Health / Endurance was
-confirmed earlier in the project. Next new effect starts with a clean slate.
+None currently - Max Health / Endurance, Slice Through, Ranged Damage / Control, and
+Companion Limit / Social are all confirmed working (see bugHistory.md 2026-09-01
+entries). Next new effect starts with a clean slate.

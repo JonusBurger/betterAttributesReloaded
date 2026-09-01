@@ -452,3 +452,39 @@ recurring yet - a dedicated land re-test would be the more direct confirmation.
 no freeze. That's the direct confirmation this entry asked for. `RangedDamageControlPatch`
 (the `ComputeBlowMagnitude` version) is now confirmed stable in both land and naval
 combat; consider this bug closed.
+
+## 2026-09-01 - Added Companion Limit / Social effect; not yet tested
+
+`companionLimit = baseLimit + floor(bonusPerPoint * Social)`, hard player-only (no
+toggle - matches the predecessor mod's reference, which has no "Player Only" setting for
+this effect either), bonus-per-point default 0.5, selectable in exact 0.5 steps.
+
+**Notes for anyone touching this next:**
+- `SettingPropertyFloatingIntegerAttribute` (checked by reflecting on `MCMv5.dll`
+  directly) has no step-size parameter - just `displayName`/`minValue`/`maxValue`/
+  `valueFormat`. A free slider can't be forced to 0.5 increments. Used
+  `MCM.Common.Dropdown<float>` with preset values (0, 0.5, 1, ... 5) instead - confirmed
+  via reflection that `Dropdown<T>` is fully generic (not string-only), exposing
+  `SelectedValue`/`SelectedIndex`, same pattern the predecessor mod uses for its
+  attribute-choice dropdowns (`Reference/MCMSettings.cs`) but with `float` instead of
+  `string`.
+- **Floored, not rounded** - this is the one place in this project where that
+  distinction actually matters: the task spec requires Social = 1 with the default
+  0.5-per-point bonus to leave the limit at exactly `baseLimit` (`floor(0.5) = 0`).
+  `Math.Round`'s default (banker's/round-half-to-even) rounding would coincidentally
+  also give 0 for exactly 0.5, but diverges from `floor` at other half-integer
+  results (e.g. Social = 3: `floor(1.5) = 1` vs `Math.Round(1.5) = 2`) - used
+  `Math.Floor` explicitly, not `Math.Round`.
+- **Deliberate deviation from the reference implementation:** the predecessor mod's
+  `GetCompanionLimit` postfix doesn't check which `Clan` was passed in at all - it always
+  adds the player's Social-based bonus to whatever clan's limit is being computed, which
+  would incorrectly affect an AI clan's limit if the model is ever queried for one. This
+  version checks `clan == Hero.MainHero.Clan` first, matching the actual "player-only"
+  intent rather than the reference's literal (and probably accidental) behavior.
+- Confirmed via reflection: `DefaultClanTierModel.GetCompanionLimit(Clan) : int` still
+  exists in the installed game (v1.4.8) with the predecessor mod's exact signature, and -
+  unlike the combat stat models - there's only this one concrete `ClanTierModel`
+  implementation, no land/naval-style split, so one patch covers it.
+
+**Confirmed working (same day):** tested in-game and behaves as intended, floor behavior
+included. Consider this effect done.
