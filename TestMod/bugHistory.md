@@ -558,3 +558,26 @@ evidence, not assumed just because it followed a recent change. Not investigated
 (no evidence points at this mod's code, so there's nothing here to fix). If it recurs and
 someone wants certainty, the standard isolation test applies: reproduce without TestMod
 loaded.
+
+## 2026-09-01 - Added Persuasion / Cunning effect; not yet tested
+
+`persuasionChance = baseChance * (1 + bonusPerPoint * Cunning)`, hard player-only (no
+toggle - matches the predecessor mod's reference, which has no "Player Only" setting for
+this effect either, and matches persuasion being an inherently player-facing dialogue
+mechanic), bonus-per-point default 2%.
+
+Patches `DefaultPersuasionModel.GetDefaultSuccessChance(PersuasionOptionArgs, float) : float`
+- confirmed via reflection to still exist in the installed game (v1.4.8) with the
+predecessor mod's exact signature, private and non-virtual. Being private is why the
+`[HarmonyPatch]` attribute uses a string method-name literal instead of `nameof()` -
+`nameof()` can't reference a private member from outside its declaring class, same
+reason the predecessor mod's own patch does the same thing. Only one concrete
+`PersuasionModel` implementation, so a single patch covers it.
+
+Result is clamped to `[0, 1]` after applying the bonus, since a "success chance" outside
+that range doesn't mean anything and other code reading it likely assumes it's already
+normalized - a defensive addition not present in the predecessor mod's reference.
+
+**Not yet tested in-game at all.** Builds clean; verify in a persuasion dialogue with
+some points in Cunning that the success chance is visibly higher than vanilla (and never
+shows above 100%).

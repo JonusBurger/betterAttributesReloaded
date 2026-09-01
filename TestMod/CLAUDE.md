@@ -239,6 +239,12 @@ actual DLLs rather than trusting old assumptions if the game/DLC updates.
   every combat model so far, there's only one concrete `ClanTierModel` implementation
   (no land/naval split), so it needs exactly one Harmony patch. Verify this kind of effect
   on the clan screen, not in a battle.
+- **A private, non-virtual method can still be a Harmony patch target - just use a
+  string method-name literal instead of `nameof()`.** `nameof()` requires the member to
+  be accessible from the calling context and fails to compile against a `private`
+  member of another class; `[HarmonyPatch(typeof(X), "MethodName")]` works regardless of
+  visibility, since Harmony resolves it via reflection internally. `DefaultPersuasionModel.GetDefaultSuccessChance`
+  is `private`/non-virtual (confirmed via reflection) - see `PersuasionCunningPatch`.
 
 ## Conventions
 
@@ -317,11 +323,16 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
 
 ## Open items
 
-None currently. Max Health / Endurance (now percentage-based via
-`DefaultCharacterStatsModel.MaxHitpoints` - confirmed in-mission health derives from it
-correctly, see bugHistory.md 2026-09-01), Slice Through, Ranged Damage / Control, and
-Companion Limit / Social are all confirmed working. Next new effect starts with a clean
-slate.
+- **Persuasion / Cunning (`PersuasionCunningPatch`) is new and not yet tested in-game at
+  all.** Builds clean and the target method was confirmed via reflection, but nobody has
+  tried to persuade anyone with it loaded yet. Verify in a persuasion dialogue with some
+  points in Cunning: the shown success chance should be visibly higher than vanilla, and
+  never shown above 100%.
+
+Max Health / Endurance (now percentage-based via `DefaultCharacterStatsModel.MaxHitpoints`
+- confirmed in-mission health derives from it correctly, see bugHistory.md 2026-09-01),
+Slice Through, Ranged Damage / Control, and Companion Limit / Social remain confirmed
+working.
 
 A campaign-map crash was reported the same day as the Max Health conversion but
 confirmed via `dotnet-dump` to be unrelated to this mod (vanilla siege/army logic, no
