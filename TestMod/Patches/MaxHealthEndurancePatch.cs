@@ -47,19 +47,35 @@ namespace TestMod.Patches
         {
             try
             {
-                var settings = BetterAttributesSettings.Instance;
-                if (settings == null || !settings.MaxHealthEnduranceBonusEnabled)
-                    return;
-
+                // Cheapest possible checks first, before ever touching the MCM settings
+                // singleton: this runs for every agent (potentially hundreds, all at once
+                // during deployment for a big naval battle), but only Heroes are affected -
+                // see bugHistory.md 2026-09-01 (third crash). Regular troops/crew bail out
+                // here without calling BetterAttributesSettings.Instance at all.
                 Hero? hero = (agent?.Character as CharacterObject)?.HeroObject;
                 if (hero == null)
+                    return;
+
+                var settings = BetterAttributesSettings.Instance;
+                if (settings == null || !settings.MaxHealthEnduranceBonusEnabled)
                     return;
 
                 if (settings.MaxHealthEnduranceBonusPlayerOnly && !hero.IsHumanPlayerCharacter)
                     return;
 
                 int endurance = hero.GetAttributeValue(DefaultCharacterAttributes.Endurance);
-                __result += settings.MaxHealthEnduranceBonus * endurance;
+                float bonus = settings.MaxHealthEnduranceBonus * endurance;
+
+                // Defensive: a malformed MCM value (or a negative/absurd Endurance from some
+                // other mod) must not hand back NaN/Infinity/negative max health - downstream
+                // vanilla code (team-wipe/mission-end checks, health-bar buckets, ...) is not
+                // written to expect that. See CLAUDE.md "Architecture gotchas" /
+                // bugHistory.md 2026-09-01 (second crash).
+                if (float.IsNaN(bonus) || float.IsInfinity(bonus))
+                    return;
+
+                float newResult = __result + bonus;
+                __result = (!float.IsNaN(newResult) && !float.IsInfinity(newResult)) ? Math.Max(1f, newResult) : __result;
             }
             catch (Exception e)
             {
