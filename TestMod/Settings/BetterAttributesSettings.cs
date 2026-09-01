@@ -79,6 +79,21 @@ namespace TestMod.Settings
 
         public float CompanionLimitSocialBonusPerPoint => CompanionLimitSocialBonusPerPointDropdown.SelectedValue;
 
+        // Player-only by design, not a toggle - matches the predecessor mod's reference
+        // (Reference/MCMSettings.cs "Persuasion" group has no PlayerOnly setting either;
+        // it always reads Hero.MainHero directly) and the persuasion dialogue minigame's
+        // own nature (a player-facing conversation mechanic, not something AI heroes roll
+        // for).
+        [SettingPropertyGroup("Bonuses/Persuasion")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Cunning grants the player a better persuasion success chance.")]
+        public bool PersuasionCunningBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Persuasion")]
+        [SettingPropertyFloatingInteger("Bonus per Cunning point", 0f, 0.2f, "0.00%", Order = 1, RequireRestart = false,
+            HintText = "Persuasion success chance increase per point of Cunning: chance = baseChance * (1 + bonusPerPoint * Cunning).")]
+        public float PersuasionCunningBonusPerPoint { get; set; } = 0.02f;
+
         public override string Id => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string DisplayName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string FolderName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
