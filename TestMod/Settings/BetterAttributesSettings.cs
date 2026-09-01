@@ -1,6 +1,7 @@
 using MCM.Abstractions.Attributes;
 using MCM.Abstractions.Attributes.v2;
 using MCM.Abstractions.Base.Global;
+using MCM.Common;
 
 namespace TestMod.Settings
 {
@@ -57,6 +58,26 @@ namespace TestMod.Settings
         [SettingPropertyFloatingInteger("Damage bonus per Control point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
             HintText = "Ranged damage increase per point of Control: damage = baseDamage * (1 + bonusPerPoint * Control).")]
         public float RangedDamageControlBonusPerPoint { get; set; } = 0.02f;
+
+        // Player-only by design, not a toggle - matches the predecessor mod's reference
+        // (Reference/MCMSettings.cs "Companion" group has no PlayerOnly setting either;
+        // it always reads Hero.MainHero directly).
+        [SettingPropertyGroup("Bonuses/Companion Limit")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Social grants the player extra companion slots.")]
+        public bool CompanionLimitSocialBonusEnabled { get; set; } = true;
+
+        // SettingPropertyFloatingInteger has no step-size option (checked against
+        // MCMv5.dll - only displayName/min/max/format), so exact 0.5 steps are done via a
+        // dropdown of preset values rather than a free slider that could land on
+        // fractional-of-0.5 values.
+        [SettingPropertyGroup("Bonuses/Companion Limit")]
+        [SettingPropertyDropdown("Bonus per Social point", Order = 1, RequireRestart = false,
+            HintText = "Extra companion slots per point of Social (floored): companionLimit = baseLimit + floor(bonusPerPoint * Social).")]
+        public Dropdown<float> CompanionLimitSocialBonusPerPointDropdown { get; set; } = new Dropdown<float>(
+            new float[] { 0f, 0.5f, 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f, 4.5f, 5f }, selectedIndex: 1);
+
+        public float CompanionLimitSocialBonusPerPoint => CompanionLimitSocialBonusPerPointDropdown.SelectedValue;
 
         public override string Id => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string DisplayName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
