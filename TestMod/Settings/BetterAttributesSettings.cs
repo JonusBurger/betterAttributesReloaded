@@ -43,6 +43,21 @@ namespace TestMod.Settings
             HintText = "Show an on-screen message when a hit slices through.")]
         public bool SliceThroughNotify { get; set; } = true;
 
+        [SettingPropertyGroup("Bonuses/Ranged Damage")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Control grants bonus damage with ranged weapons.")]
+        public bool RangedDamageControlBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Ranged Damage")]
+        [SettingPropertyBool("Player Only", Order = 1, RequireRestart = false,
+            HintText = "If enabled, only the player character's ranged damage is affected. Otherwise every hero (companions, lords, ...) benefits.")]
+        public bool RangedDamageControlBonusPlayerOnly { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Ranged Damage")]
+        [SettingPropertyFloatingInteger("Damage bonus per Control point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Ranged damage increase per point of Control: damage = baseDamage * (1 + bonusPerPoint * Control).")]
+        public float RangedDamageControlBonusPerPoint { get; set; } = 0.02f;
+
         public override string Id => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string DisplayName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string FolderName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
