@@ -1,81 +1,73 @@
 using System;
 using HarmonyLib;
-using NavalDLC.ComponentInterfaces;
-using NavalDLC.GameComponents;
-using SandBox.GameComponents;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.GameComponents;
 using TaleWorlds.Core;
-using TaleWorlds.MountAndBlade;
+using TaleWorlds.Localization;
 using TestMod.Settings;
 
 namespace TestMod.Patches
 {
     /// <summary>
-    /// maxHealth = baseGameMaxHealth + MaxHealthEnduranceBonus * ENDURANCE.
+    /// maxHealth = baseGameMaxHealth * (1 + MaxHealthEnduranceBonusPercent * ENDURANCE).
     ///
-    /// The game has no single overridable "get max health" method: `GetEffectiveMaxHealth`
-    /// is declared abstract on TaleWorlds.MountAndBlade.AgentStatCalculateModel and each
-    /// mission type registers its own concrete implementation, so Harmony has to patch
-    /// each concrete override individually:
-    ///   - SandboxAgentStatCalculateModel  - land missions (base game)
-    ///   - NavalAgentStatCalculateModel    - naval missions (War Sails)
-    ///   - NavalCustomBattleAgentStatCalculateModel - naval custom battles (War Sails)
-    /// All three were confirmed against the installed game + NavalDLC assemblies (see
-    /// CLAUDE.md). War Sails is a required dependency for this mod, but land missions
-    /// still use SandboxAgentStatCalculateModel even with the DLC installed, so that one
-    /// is kept too.
+    /// REWRITTEN 2026-09-01 from a flat, additive bonus on the three mission-level
+    /// AgentStatCalculateModel.GetEffectiveMaxHealth overrides (land/naval/naval-custom-
+    /// battle - see CLAUDE.md "Architecture gotchas" for that history) to a percentage
+    /// bonus on this single, campaign-level model, matching the predecessor mod's
+    /// reference implementation. `DefaultCharacterStatsModel.MaxHitpoints(CharacterObject,
+    /// bool) : ExplainedNumber` is the canonical source for a character's max HP - the
+    /// same value shown on the character sheet and (per Bannerlord's well-documented
+    /// wound/recovery mechanic, where a partially-recovered hero enters a mission below
+    /// full health as a fraction of this same number) very likely what
+    /// GetEffectiveMaxHealth derives its baseline from - confirmed via reflection to exist
+    /// in the installed game (v1.4.8) with the predecessor mod's exact signature, but this
+    /// specific relationship (does GetEffectiveMaxHealth read from MaxHitpoints, or
+    /// compute independently?) could not be confirmed from metadata alone (method bodies
+    /// aren't decompiled - see CLAUDE.md). If in-battle max health stops being boosted
+    /// after this change while the character sheet number still goes up, that
+    /// relationship was wrong and the old land/naval Harmony postfixes need to come back
+    /// alongside this one, not instead of it.
     ///
-    /// Only Heroes expose an Endurance value (Hero.GetAttributeValue); regular troops and
-    /// ship crews have no individually-tracked attributes, so this bonus only applies to
-    /// hero agents (player, companions, lords, ...).
+    /// ExplainedNumber is a struct, and AddFactor(float, TextObject) is vanilla's own
+    /// mechanism for a percentage-style modifier - using it here (rather than manually
+    /// multiplying a float, as e.g. RangedDamageControlPatch does) means this bonus shows
+    /// up properly in the game's own stat breakdown tooltips.
+    ///
+    /// Only Heroes expose an Endurance value (Hero.GetAttributeValue); regular
+    /// (non-hero) characters have no equivalent accessor, so this only ever applies to
+    /// hero characters (player, companions, lords, ...).
     /// </summary>
+    [HarmonyPatch(typeof(DefaultCharacterStatsModel), nameof(DefaultCharacterStatsModel.MaxHitpoints))]
     internal static class MaxHealthEndurancePatch
     {
-        [HarmonyPatch(typeof(SandboxAgentStatCalculateModel), nameof(SandboxAgentStatCalculateModel.GetEffectiveMaxHealth))]
         [HarmonyPostfix]
-        public static void SandboxPostfix(Agent agent, ref float __result) => Apply(agent, ref __result);
-
-        [HarmonyPatch(typeof(NavalAgentStatCalculateModel), nameof(NavalAgentStatCalculateModel.GetEffectiveMaxHealth))]
-        [HarmonyPostfix]
-        public static void NavalPostfix(Agent agent, ref float __result) => Apply(agent, ref __result);
-
-        [HarmonyPatch(typeof(NavalCustomBattleAgentStatCalculateModel), nameof(NavalCustomBattleAgentStatCalculateModel.GetEffectiveMaxHealth))]
-        [HarmonyPostfix]
-        public static void NavalCustomBattlePostfix(Agent agent, ref float __result) => Apply(agent, ref __result);
-
-        private static void Apply(Agent agent, ref float __result)
+        public static void Postfix(ref ExplainedNumber __result, CharacterObject character, bool includeDescriptions)
         {
             try
             {
-                // Cheapest possible checks first, before ever touching the MCM settings
-                // singleton: this runs for every agent (potentially hundreds, all at once
-                // during deployment for a big naval battle), but only Heroes are affected -
-                // see bugHistory.md 2026-09-01 (third crash). Regular troops/crew bail out
-                // here without calling BetterAttributesSettings.Instance at all.
-                Hero? hero = (agent?.Character as CharacterObject)?.HeroObject;
-                if (hero == null)
+                // Cheapest checks first, before ever touching the MCM settings singleton -
+                // see CLAUDE.md "Architecture gotchas".
+                if (character == null || !character.IsHero)
                     return;
 
                 var settings = BetterAttributesSettings.Instance;
                 if (settings == null || !settings.MaxHealthEnduranceBonusEnabled)
                     return;
 
-                if (settings.MaxHealthEnduranceBonusPlayerOnly && !hero.IsHumanPlayerCharacter)
+                if (settings.MaxHealthEnduranceBonusPlayerOnly && !character.IsPlayerCharacter)
+                    return;
+
+                Hero? hero = character.HeroObject;
+                if (hero == null)
                     return;
 
                 int endurance = hero.GetAttributeValue(DefaultCharacterAttributes.Endurance);
-                float bonus = settings.MaxHealthEnduranceBonus * endurance;
-
-                // Defensive: a malformed MCM value (or a negative/absurd Endurance from some
-                // other mod) must not hand back NaN/Infinity/negative max health - downstream
-                // vanilla code (team-wipe/mission-end checks, health-bar buckets, ...) is not
-                // written to expect that. See CLAUDE.md "Architecture gotchas" /
-                // bugHistory.md 2026-09-01 (second crash).
-                if (float.IsNaN(bonus) || float.IsInfinity(bonus))
+                float factor = settings.MaxHealthEnduranceBonusPercent * endurance;
+                if (float.IsNaN(factor) || float.IsInfinity(factor))
                     return;
 
-                float newResult = __result + bonus;
-                __result = (!float.IsNaN(newResult) && !float.IsInfinity(newResult)) ? Math.Max(1f, newResult) : __result;
+                __result.AddFactor(factor, includeDescriptions ? new TextObject("Endurance Bonus") : null);
             }
             catch (Exception e)
             {

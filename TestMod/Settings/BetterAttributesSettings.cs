@@ -23,9 +23,9 @@ namespace TestMod.Settings
         public bool MaxHealthEnduranceBonusPlayerOnly { get; set; } = true;
 
         [SettingPropertyGroup("Bonuses/Max Health")]
-        [SettingPropertyFloatingInteger("Bonus per Endurance point", 0f, 20f, "0.0", Order = 2, RequireRestart = false,
-            HintText = "Max health added per point of Endurance: maxHealth = baseGameMaxHealth + bonus * Endurance.")]
-        public float MaxHealthEnduranceBonus { get; set; } = 5f;
+        [SettingPropertyFloatingInteger("Bonus per Endurance point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Max health increase per point of Endurance: maxHealth = baseGameMaxHealth * (1 + bonusPerPoint * Endurance).")]
+        public float MaxHealthEnduranceBonusPercent { get; set; } = 0.05f;
 
         // Player-only by design, not a toggle (see CLAUDE.md) - Vigor governs how hard the
         // player swings, not how hard everyone else does.
