@@ -400,3 +400,55 @@ entirely. If it needs debugging there, note that `AttributeHelper`/`NotifyHelper
 not available here - this version reimplements the equivalent logic directly with
 `MBRandom.RandomFloat` and `InformationManager`, already used elsewhere in this project,
 rather than pulling in that dependency.
+
+## 2026-09-01 - Ranged Damage / Control froze the game in land combat (no crash dump)
+
+**Symptom:** `RangedDamageControlPatch`'s first version - a Harmony postfix on
+`MissionCombatMechanicsHelper.ComputeBlowDamage` (the shared final int-damage step for
+any hit, scoped to ranged via the hit weapon's `IsRangedWeapon`) - froze the game during
+land combat after some time. Unlike every crash earlier in this project, there was **no
+crash report** - a hang, not an access violation - so `dotnet-dump` couldn't be used to
+root-cause it (nothing to load). The exact mechanism is therefore **unconfirmed**.
+
+**Action taken:** the project owner provided the predecessor mod's actual implementation
+of this same effect, which patches a different, earlier-stage method:
+`MissionCombatMechanicsHelper.ComputeBlowMagnitude` (no "Melee"/"Missile" suffix - a
+separate method from both `ComputeBlowMagnitudeMelee` and `ComputeBlowMagnitudeMissile`,
+confirmed via reflection to exist in the installed game (v1.4.8) with the exact
+parameter names/types the old mod uses, `out` params included). Rewrote
+`RangedDamageControlPatch` to patch this method instead, scaling `specialMagnitude`
+(matching the old mod), while keeping an explicit `IsRangedWeapon` check the old mod
+itself doesn't have - `ComputeBlowMagnitude` has no type suffix, so (like
+`ComputeBlowDamage`) it likely runs for melee hits too, and this effect is specifically
+ranged damage.
+
+**Not confirmed as the fix** - there's no dump to prove `ComputeBlowDamage` was
+specifically what caused the freeze, only that this is a different, proven (predecessor
+mod's real, presumably-tested code), more upstream hook. Needs its own land-combat test.
+If it freezes again, the next diagnostic step (since dotnet-dump doesn't apply to hangs)
+would be attaching a debugger *before* the freeze to catch it live, or bisecting by
+disabling this effect via MCM to confirm attribution the same way earlier crashes were
+isolated.
+
+**Side lesson:** a frozen game process still holds a file lock on `TestMod.dll`, and the
+post-build copy step fails with `UnauthorizedAccessException` until that process is
+closed - if a build's copy step fails with an access-denied error, check for a lingering
+`TaleWorlds.MountAndBlade.Launcher`/game process before assuming a build config problem.
+
+## 2026-09-01 - Naval battle passed on the current build
+
+A naval battle with both `SliceThroughMomentumPatch` (the `MissionBehaviorType.Other`-era
+version) and `RangedDamageControlPatch`'s `ComputeBlowMagnitude` rewrite active completed
+with no crash and no freeze. This closes naval verification for Slice Through (land was
+already confirmed separately, see the 2026-09-01 "rewritten, not just fixed" entry).
+
+For Ranged Damage specifically, treat this as encouraging but not conclusive: the freeze
+that prompted patching `ComputeBlowMagnitude` instead of `ComputeBlowDamage` was
+originally observed in **land** combat. A clean naval run is good evidence the rewrite is
+stable, but doesn't by itself prove the land freeze is fixed rather than just not
+recurring yet - a dedicated land re-test would be the more direct confirmation.
+
+**Update (same day): a dedicated land battle also completed successfully** - no crash,
+no freeze. That's the direct confirmation this entry asked for. `RangedDamageControlPatch`
+(the `ComputeBlowMagnitude` version) is now confirmed stable in both land and naval
+combat; consider this bug closed.

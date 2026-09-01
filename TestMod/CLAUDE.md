@@ -67,6 +67,10 @@ dotnet build
   `TaleWorlds.MountAndBlade.Launcher.exe` (in `bin\Win64_Shipping_Client` of the
   game folder), with the mod enabled in Singleplayer > Mods.
 - There is no automated test suite; verification is manual, in-game.
+- If the post-build copy step fails with `UnauthorizedAccessException`/access-denied on
+  `TestMod.dll`, it's very likely a still-running (possibly frozen/hung) game process
+  holding the file locked, not a build config problem - check for a lingering
+  `TaleWorlds.MountAndBlade.Launcher` process before investigating anything else.
 
 ## Project structure
 
@@ -190,6 +194,22 @@ actual DLLs rather than trusting old assumptions if the game/DLC updates.
 - `Hero.GetAttributeValue`, `MBRandom.RandomFloat` (`TaleWorlds.Core`), `MBList<T>`
   and `InformationManager`/`InformationMessage` (`TaleWorlds.Library`) round out the
   toolkit for chance-based, notification-emitting effects like Slice Through.
+- **`MissionCombatMechanicsHelper` has several damage-pipeline methods with overlapping
+  names - pin down which one is actually melee/ranged-scoped before patching, don't
+  assume from the name alone.** `ComputeBlowDamage` is the shared final int-damage step
+  for *any* hit (melee or ranged); it takes the hit's `TaleWorlds.Core.WeaponComponentData`
+  directly, which exposes `IsRangedWeapon`/`IsMeleeWeapon` bools for scoping a patch to
+  one type. `ComputeBlowMagnitude` (no suffix) is an *earlier*, similarly-shared stage
+  (produces `baseMagnitude`/`specialMagnitude` that later feed into `ComputeBlowDamage`) -
+  also not type-specific despite looking like it might be. `ComputeBlowMagnitudeMelee`/
+  `ComputeBlowMagnitudeMissile` **are** genuinely type-specific (like
+  `UpdateMomentumRemaining`, melee-only). `RangedDamageControlPatch` originally patched
+  `ComputeBlowDamage` (froze the game, unconfirmed why - no crash dump existed for a hang)
+  and now patches `ComputeBlowMagnitude` with an explicit `IsRangedWeapon` check, matching
+  the predecessor mod's real implementation - see bugHistory.md 2026-09-01. All of these
+  `out`-parameter methods (`inflictedDamage`, `baseMagnitude`, `specialMagnitude`, etc.)
+  need `ref` in a Harmony patch signature, not `out` - Harmony requires `ref` for any
+  mutated parameter regardless of the original's `ref`/`out`/`in`.
 
 ## Conventions
 
@@ -268,8 +288,6 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
 
 ## Open items
 
-- **Slice Through (`SliceThroughMomentumPatch`, the Harmony-patch rewrite - see
-  "Architecture gotchas") is confirmed working in land combat, but still not tested in a
-  naval battle.** War Sails missions weren't covered even by the `MissionBehavior`
-  version this replaced, so this remains entirely unverified there. Update this entry and
-  `bugHistory.md`'s 2026-09-01 "rewritten, not just fixed" entry once tested.
+None currently - Slice Through and Ranged Damage / Control are both confirmed stable in
+land and naval combat (see bugHistory.md 2026-09-01 entries). Max Health / Endurance was
+confirmed earlier in the project. Next new effect starts with a clean slate.
