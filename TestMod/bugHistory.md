@@ -581,3 +581,77 @@ normalized - a defensive addition not present in the predecessor mod's reference
 **Not yet tested in-game at all.** Builds clean; verify in a persuasion dialogue with
 some points in Cunning that the success chance is visibly higher than vanilla (and never
 shows above 100%).
+
+## 2026-09-01 - Added Influence / Intelligence effect; not yet tested
+
+`influenceGain = baseInfluenceGain * (1 + bonusPerPoint * Intelligence)`, default 2% per
+point, default player-only with an MCM toggle to extend to every hero party leader -
+matches the predecessor mod's reference default exactly (`Reference/MCMSettings.cs`
+`InfluenceBonus*`, already tied to Intelligence). This group *does* have a "Player Only"
+setting in the reference (unlike Companion Limit/Persuasion), so implemented with the
+toggle, not hard-locked.
+
+**The predecessor mod's own reference code for this effect does not compile against the
+installed game (v1.4.8) as given - confirmed via reflection before writing anything.**
+`DefaultBattleRewardModel.CalculateInfluenceGain` gained two extra parameters since
+whatever version the reference was written against
+(`influenceMultiplierForWinnerSide`, `includeDescriptions`) - the reference's 3-parameter
+`(PartyBase, float, float)` signature is stale. Used the current signature instead, only
+declaring the parameters actually needed (`winnerParty`, `includeDescriptions`,
+`__result`) - Harmony postfixes can omit unused trailing/middle parameters by matching
+declared ones by name. **Lesson: verify a reference implementation's signature via
+reflection every time, even ones already proven to work for a different effect earlier
+in the project (this is the same file, `PatchExample.cs.txt`, that `CalculateRenownGain`/
+`CalculateMoraleGainVictory` also come from) - a signature can drift between the game
+version the old mod targeted and the one currently installed.**
+
+Only one concrete `BattleRewardModel` implementation, so a single patch covers it.
+
+**Confirmed working (2026-09-02):** tested in battle, works as intended. Consider this
+effect done.
+
+## 2026-09-02 - Added Reload Speed / Control effect; not yet tested
+
+`reloadSpeed = baseReloadSpeed * (1 + bonusPerPoint * Control)`, default 2% per point,
+default player-only with an MCM toggle to extend to every hero - matches the
+predecessor mod's reference shape (`Reference/MCMSettings.cs`, `ReloadBonus*`) for the
+Enabled/Player Only/Bonus settings and the 2%-per-point scaling value. **The attribute is
+Control per this session's explicit instruction, not the reference file's own default for
+this group (`selectedIndex: 0` = Vigor)** - don't "correct" it back to Vigor by copying
+the reference's default blindly for this specific effect.
+
+Patches `UpdateAgentStats(Agent, AgentDrivenProperties)`, multiplying
+`agentDrivenProperties.ReloadSpeed`. This is declared on the same abstract
+`AgentStatCalculateModel` as `GetEffectiveMaxHealth` originally was (see CLAUDE.md
+"Architecture gotchas") and confirmed via reflection to have the identical signature on
+all three concrete implementations - **unlike the predecessor mod's reference, which
+only patches the land (Sandbox) one, this patches all three**
+(`SandboxAgentStatCalculateModel`/`NavalAgentStatCalculateModel`/
+`NavalCustomBattleAgentStatCalculateModel`), the same lesson the very first Max Health
+implementation had to learn from a real bug, applied proactively this time instead of
+rediscovered the hard way.
+
+**Confirmed working in land combat (2026-09-03).** Naval not yet separately tested -
+low-risk given the identical, reflection-confirmed signature on all three models, but
+not the same as an actual naval battle observation. Update this entry once tried there.
+
+## 2026-09-03 - Added Movement Speed / Endurance effect; not yet tested
+
+`moveSpeed = baseMoveSpeed * (1 + bonusPerPoint * Endurance)`, default 2% per point,
+default player-only with an MCM toggle to extend to every hero - matches the predecessor
+mod's reference shape (`Reference/MCMSettings.cs`, `MovementBonus*`) for the
+Enabled/Player Only/Bonus settings and the 2%-per-point scaling value. **The attribute is
+Endurance per this session's explicit instruction, not the reference file's own default
+for this group (`selectedIndex: 1` = Control)** - same situation as
+`ReloadSpeedControlPatch` before it; don't copy the reference's default attribute back
+for a differently-specified effect.
+
+Patches `UpdateAgentStats(Agent, AgentDrivenProperties)` - the same method
+`ReloadSpeedControlPatch` already patches, multiplying
+`agentDrivenProperties.MaxSpeedMultiplier` this time instead of `ReloadSpeed`. Since the
+signature was already confirmed on all three concrete `AgentStatCalculateModel`
+implementations for Reload Speed, this patches all three too without needing to
+re-verify - **unlike the predecessor mod's reference, which only patches the land
+(Sandbox) one.**
+
+**Reported working (2026-09-03).** Consider this effect done.

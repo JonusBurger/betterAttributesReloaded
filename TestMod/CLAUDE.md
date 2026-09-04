@@ -145,6 +145,19 @@ actual DLLs rather than trusting old assumptions if the game/DLC updates.
   `GetTypes()`/`GetMethods()`) is fine and the preferred way to confirm an exact
   Harmony patch target before writing one - it avoids shipping a patch that
   silently no-ops because a method name or owning type was guessed wrong.
+- **Verify a reference/predecessor-mod signature via reflection every time, even for a
+  method from a file that's already proven correct for a *different* effect.**
+  `Reference/PatchExample.cs.txt`'s `CalculateInfluenceGain` patch (3 parameters, no
+  `ref __result` needed in the original) does not match the installed game (v1.4.8):
+  `DefaultBattleRewardModel.CalculateInfluenceGain` gained two extra parameters
+  (`influenceMultiplierForWinnerSide`, `includeDescriptions`) since whatever version the
+  reference was written against, even though `CalculateRenownGain`/
+  `CalculateMoraleGainVictory` from the *same file* were fine. A method signature can
+  drift between the predecessor mod's game version and the currently installed one on a
+  per-method basis - a reference file being right once doesn't mean it's right
+  everywhere. `InfluenceIntelligencePatch` uses the current signature, declaring only
+  the parameters actually needed (Harmony postfixes can omit unused
+  trailing/middle parameters by matching the ones you declare by name).
 - **Before reaching for a `MissionBehavior`, check whether a Harmony patch on an
   existing vanilla mechanic already does what the effect needs.** Slice Through's first
   implementation used a `MissionBehavior` (`OnAgentHit` + a manual
@@ -328,6 +341,14 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
   tried to persuade anyone with it loaded yet. Verify in a persuasion dialogue with some
   points in Cunning: the shown success chance should be visibly higher than vanilla, and
   never shown above 100%.
+- **Reload Speed / Control (`ReloadSpeedControlPatch`) is confirmed working in land
+  combat (2026-09-03), but not yet separately verified in a naval battle.** Low risk
+  given the identical, reflection-confirmed signature on all three
+  `AgentStatCalculateModel` implementations, but not the same as an actual naval
+  observation - try it there when convenient.
+Movement Speed / Endurance was reported working on 2026-09-03.
+
+Influence / Intelligence was confirmed working in battle on 2026-09-02.
 
 Max Health / Endurance (now percentage-based via `DefaultCharacterStatsModel.MaxHitpoints`
 - confirmed in-mission health derives from it correctly, see bugHistory.md 2026-09-01),
