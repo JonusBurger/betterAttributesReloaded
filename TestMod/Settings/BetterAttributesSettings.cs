@@ -94,6 +94,51 @@ namespace TestMod.Settings
             HintText = "Persuasion success chance increase per point of Cunning: chance = baseChance * (1 + bonusPerPoint * Cunning).")]
         public float PersuasionCunningBonusPerPoint { get; set; } = 0.02f;
 
+        [SettingPropertyGroup("Bonuses/Influence")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Intelligence grants bonus influence from battle victories.")]
+        public bool InfluenceIntelligenceBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Influence")]
+        [SettingPropertyBool("Player Only", Order = 1, RequireRestart = false,
+            HintText = "If enabled, only the player character's influence gain is affected. Otherwise every hero party leader (companions, lords, ...) benefits.")]
+        public bool InfluenceIntelligenceBonusPlayerOnly { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Influence")]
+        [SettingPropertyFloatingInteger("Bonus per Intelligence point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Influence gain increase per point of Intelligence: influence = baseInfluence * (1 + bonusPerPoint * Intelligence).")]
+        public float InfluenceIntelligenceBonusPerPoint { get; set; } = 0.02f;
+
+        [SettingPropertyGroup("Bonuses/Reload Speed")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Control grants bonus ranged weapon reload speed.")]
+        public bool ReloadSpeedControlBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Reload Speed")]
+        [SettingPropertyBool("Player Only", Order = 1, RequireRestart = false,
+            HintText = "If enabled, only the player character's reload speed is affected. Otherwise every hero (companions, lords, ...) benefits.")]
+        public bool ReloadSpeedControlBonusPlayerOnly { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Reload Speed")]
+        [SettingPropertyFloatingInteger("Bonus per Control point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Reload speed increase per point of Control: reloadSpeed = baseReloadSpeed * (1 + bonusPerPoint * Control).")]
+        public float ReloadSpeedControlBonusPerPoint { get; set; } = 0.02f;
+
+        [SettingPropertyGroup("Bonuses/Movement Speed")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Endurance grants bonus combat movement speed.")]
+        public bool MovementSpeedEnduranceBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Movement Speed")]
+        [SettingPropertyBool("Player Only", Order = 1, RequireRestart = false,
+            HintText = "If enabled, only the player character's movement speed is affected. Otherwise every hero (companions, lords, ...) benefits.")]
+        public bool MovementSpeedEnduranceBonusPlayerOnly { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Movement Speed")]
+        [SettingPropertyFloatingInteger("Bonus per Endurance point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Movement speed increase per point of Endurance: moveSpeed = baseMoveSpeed * (1 + bonusPerPoint * Endurance).")]
+        public float MovementSpeedEnduranceBonusPerPoint { get; set; } = 0.02f;
+
         public override string Id => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string DisplayName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string FolderName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
