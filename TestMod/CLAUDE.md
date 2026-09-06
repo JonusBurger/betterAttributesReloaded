@@ -423,16 +423,9 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
   captured lords over multiple exceeded-capacity cycles, compare escape frequency with
   the effect on vs. off at a high Control value; needs a longer session than most effects
   to say anything meaningful). Don't treat "no crash" as "confirmed working" for this one.
-- **Character-sheet attribute tooltip display (`CharacterAttributeItemVMPatch`) is new
-  and not yet tested in-game.** Builds clean and the target constructor/property were
-  confirmed via reflection (see "Architecture gotchas" below). Verify in the character
-  development screen: each attribute's pop-up should list a line per enabled,
-  applicable effect with a sensible value, no line for a disabled effect or one that
-  doesn't apply to the hero being viewed (companion vs. player vs. other lord, per that
-  effect's own scope), and that the text isn't silently cut off if several effects share
-  one attribute (the predecessor mod had a dedicated "Support for more Bonuses" MCM
-  toggle for exactly this - not carried over since it wasn't asked for; add it if
-  in-game testing shows clipping).
+
+The character-sheet attribute tooltip display (`CharacterAttributeItemVMPatch`) was
+confirmed working in-game on 2026-09-06.
 
 Prisoner Recruitment / Social was confirmed working on 2026-09-06.
 

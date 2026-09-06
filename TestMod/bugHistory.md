@@ -807,7 +807,7 @@ using TaleWorlds' `{=id}` localization mechanism like the predecessor mod's
 DisplayName/HintText in `BetterAttributesSettings` is a plain literal too), so a raw
 constant is both consistent and the easiest thing to open and hand-edit.
 
-Builds clean on both `net472`/`net6`; deploy-copy timestamp confirmed. **Not yet tested
-in-game** - open the character development screen and check that each attribute's
-pop-up shows the expected bonus line(s) with sensible values, and that disabling an
-effect via MCM removes its line.
+Builds clean on both `net472`/`net6`; deploy-copy timestamp confirmed.
+
+**Confirmed working in-game (2026-09-06):** attribute pop-ups show the expected bonus
+line(s). Consider this effect done.
