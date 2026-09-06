@@ -764,3 +764,50 @@ but the actual effect (reduced escape frequency) hasn't been functionally confir
 session (needs the longer, multi-cycle scenario described above). Stability is a good
 sign the prefix/skip logic itself isn't broken, but don't count this as "confirmed
 working" the way other effects are - only "confirmed not harmful."
+
+## 2026-09-06 - Added character-sheet attribute tooltip display for all 12 effects
+
+New, foundational feature (explicitly flagged as "required for all future features as
+well"): every attribute-scaling effect now appends a line describing its current bonus
+to the vanilla character-development screen's attribute pop-up, instead of the bonus
+being invisible outside of noticing the stat difference in play.
+
+**Reference implementation provided** (predecessor mod's `CharacterAttributeItemVMPatch`,
+patching `CharacterAttributeItemVM`'s constructor via `getAllBonusForGivenAttribute` +
+a `CustomAtrObject` per-effect record). Verified via reflection against the installed
+game (v1.4.8, `TaleWorlds.CampaignSystem.ViewModelCollection.dll`,
+`TaleWorlds.CampaignSystem.ViewModelCollection.CharacterDeveloper.CharacterAttributeItemVM`)
+before writing anything, per the standing convention - **no signature drift this time**:
+the 5-parameter constructor (`Hero`, `CharacterAttribute`, `CharacterDeveloperHeroItemVM`,
+`Action<CharacterAttributeItemVM>`, `Action<CharacterAttributeItemVM>`) matches the
+reference exactly, and `IncreaseHelpText` is confirmed public read/write (no need for
+private-field/Traverse access). Also confirmed `CharacterAttribute` (base type
+`PropertyObject`) has no overridden `Equals`/`==` - attribute comparisons rely on
+reference equality against the `DefaultCharacterAttributes.X` singletons, same as the
+predecessor mod's own `GetAttributeTypeFromIndex(...) == ca` check.
+
+**Design differs from the reference in one deliberate way:** the predecessor mod's
+`getAllBonusForGivenAttribute` is one large method with a hardcoded `if` block per
+effect and a single `playerOnly` bool per `CustomAtrObject`. This mod's effects don't
+all share one scope shape - some are hard player-only (Slice Through, Companion Limit,
+Persuasion, Prisoner Escape Prevention), some have a toggleable "Player Only" bool
+(Max Health, Ranged Damage, Reload Speed, Movement Speed, Renown, Stability, Influence),
+and Prisoner Recruitment has a 3-way dropdown (player / player's clan / all lords) - so
+`CharacterAttributeItemVMPatch.cs` (`Patches/`) uses a small `EffectLine` descriptor
+list (attribute, enabled-check, per-hero applies-check, value formatter) instead, one
+entry per effect, each mirroring that effect's own patch's scope logic exactly so the
+tooltip never claims a bonus applies to a hero it actually doesn't.
+
+**Display strings centralized on request:** the project owner asked to be able to
+"manually check and change" the displayed wording without digging through patch logic.
+Added `Settings/EffectDisplayStrings.cs` - one plain `public const string` per effect
+(a leading phrase; the patch appends the live formatted value right after it). Not
+using TaleWorlds' `{=id}` localization mechanism like the predecessor mod's
+`Reference/Strings.cs` - nothing else in this project is localized (every MCM
+DisplayName/HintText in `BetterAttributesSettings` is a plain literal too), so a raw
+constant is both consistent and the easiest thing to open and hand-edit.
+
+Builds clean on both `net472`/`net6`; deploy-copy timestamp confirmed. **Not yet tested
+in-game** - open the character development screen and check that each attribute's
+pop-up shows the expected bonus line(s) with sensible values, and that disabling an
+effect via MCM removes its line.

@@ -295,6 +295,33 @@ actual DLLs rather than trusting old assumptions if the game/DLC updates.
   roll doesn't happen this cycle, which is statistically equivalent over repeated calls
   but much harder to verify directly than a stat that shows up on a UI screen.
 
+- **The character-development screen's per-attribute pop-up is `CharacterAttributeItemVM`
+  (`TaleWorlds.CampaignSystem.ViewModelCollection.CharacterDeveloper`, in
+  `TaleWorlds.CampaignSystem.ViewModelCollection.dll`) - it's constructed once per
+  attribute per hero shown, so a Harmony postfix on its constructor is the hook for any
+  "show this bonus on the character sheet" feature.** Confirmed via reflection (v1.4.8):
+  the constructor is `(Hero hero, CharacterAttribute currAtt, CharacterDeveloperHeroItemVM
+  developerVM, Action<CharacterAttributeItemVM> onInpectAttribute,
+  Action<CharacterAttributeItemVM> onAddAttributePoint)`, and `IncreaseHelpText` (the
+  pop-up's descriptive text) is a public, read/write `string` property - just assign it
+  from a postfix, no `Traverse`/private-field access needed. `CharacterAttribute`'s base
+  type is `PropertyObject`, which does not override `Equals`/`==`, so comparing `currAtt`
+  against a `DefaultCharacterAttributes.X` constant with `==` is reference equality - safe
+  here because each attribute constant is one shared singleton instance, but don't assume
+  the same for a different `PropertyObject`-derived type without checking. See
+  `CharacterAttributeItemVMPatch`.
+- **Not every new feature adds a new *effect* - some (like the character-sheet display)
+  need to enumerate *all existing* effects instead.** For that, prefer one small
+  descriptor per effect (attribute + enabled-check + per-hero scope-check + value
+  formatter) over one hardcoded branch per effect in a growing method - see
+  `CharacterAttributeItemVMPatch`'s `EffectLine` list. Keep each descriptor's
+  scope-check logically identical to that effect's own patch (don't reimplement the
+  scope rule differently in two places) so the two can't silently drift apart.
+- **Centralize any user-facing display text the project owner wants to hand-edit in its
+  own file, separate from the patch logic that uses it** - see
+  `Settings/EffectDisplayStrings.cs` (plain `public const string`s, one per effect, no
+  localization mechanism since nothing else in this project uses one).
+
 ## Conventions
 
 - Do not modify anything under the game's own install directory
@@ -396,6 +423,16 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
   captured lords over multiple exceeded-capacity cycles, compare escape frequency with
   the effect on vs. off at a high Control value; needs a longer session than most effects
   to say anything meaningful). Don't treat "no crash" as "confirmed working" for this one.
+- **Character-sheet attribute tooltip display (`CharacterAttributeItemVMPatch`) is new
+  and not yet tested in-game.** Builds clean and the target constructor/property were
+  confirmed via reflection (see "Architecture gotchas" below). Verify in the character
+  development screen: each attribute's pop-up should list a line per enabled,
+  applicable effect with a sensible value, no line for a disabled effect or one that
+  doesn't apply to the hero being viewed (companion vs. player vs. other lord, per that
+  effect's own scope), and that the text isn't silently cut off if several effects share
+  one attribute (the predecessor mod had a dedicated "Support for more Bonuses" MCM
+  toggle for exactly this - not carried over since it wasn't asked for; add it if
+  in-game testing shows clipping).
 
 Prisoner Recruitment / Social was confirmed working on 2026-09-06.
 
