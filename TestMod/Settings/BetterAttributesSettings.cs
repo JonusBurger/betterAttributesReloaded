@@ -201,6 +201,25 @@ namespace TestMod.Settings
             HintText = "Chance to prevent a captured lord's escape attempt entirely, per point of Control (capped at 100%).")]
         public float PrisonerEscapeControlBonusPerPoint { get; set; } = 0.02f;
 
+        // Three-way scope like Prisoner Recruitment, not a plain "Player Only" bool -
+        // explicitly requested for this effect. See MeleeDamageVigorPatch for the
+        // Clan-membership rule ("Player's Clan" includes companions).
+        [SettingPropertyGroup("Bonuses/Melee Damage")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Vigor grants bonus melee damage.")]
+        public bool MeleeDamageVigorBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Melee Damage")]
+        [SettingPropertyDropdown("Applies To", Order = 1, RequireRestart = false,
+            HintText = "Which heroes benefit: only the player, any hero in the player's clan (companions included), or every hero.")]
+        public Dropdown<string> MeleeDamageVigorScopeDropdown { get; set; } = new Dropdown<string>(
+            new string[] { "Player Only", "Player's Clan", "All Lords" }, selectedIndex: 0);
+
+        [SettingPropertyGroup("Bonuses/Melee Damage")]
+        [SettingPropertyFloatingInteger("Damage bonus per Vigor point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Melee damage increase per point of Vigor: damage = baseDamage * (1 + bonusPerPoint * Vigor).")]
+        public float MeleeDamageVigorBonusPerPoint { get; set; } = 0.02f;
+
         public override string Id => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string DisplayName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string FolderName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
