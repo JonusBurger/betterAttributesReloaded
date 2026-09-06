@@ -339,6 +339,15 @@ actual DLLs rather than trusting old assumptions if the game/DLC updates.
   `<DependedModuleMetadata>` entry).
 - Log all bugs encountered in `bugHistory.md` with cause and solution.
 - Use only small commits.
+- **Every new attribute-scaling effect must be added to the character-sheet display
+  (`Patches/CharacterAttributeItemVMPatch.cs`), not just implemented and left
+  invisible.** Add one `EffectLine` entry (attribute, enabled-check, per-hero
+  scope-check mirroring the effect's own patch exactly, value formatter) and one
+  matching `public const string` in `Settings/EffectDisplayStrings.cs` for its display
+  text - see CLAUDE.md "Architecture gotchas" (`CharacterAttributeItemVMPatch`/
+  `EffectLine`) for the pattern and bugHistory.md 2026-09-06 for why this exists. This
+  is a required step of implementing an effect, the same as adding its MCM setting -
+  not an optional follow-up.
 - Every change should not effect the save-file in a way that will corrupt it if the mod is disabled
   - "Corrupt" means: the save becomes unloadable, or the game errors/crashes loading it -
     not "a battle plays out differently because of a mod bonus" (that's just the mod
@@ -389,6 +398,9 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
   in-game - implement settings for real in `Settings/` (see `BetterAttributesSettings`
   if it still exists, or `Reference/MCMSettings.cs` for the shape of individual
   settings), not as hardcoded constants.
+- Every new attribute-scaling effect must also get an entry in the character-sheet
+  display (`Patches/CharacterAttributeItemVMPatch.cs` + `Settings/EffectDisplayStrings.cs`)
+  as part of implementing it, not as an optional follow-up - see "Conventions" above.
 - Since the mod is based on an old one, `Reference/MCMSettings.cs` is that old
   mod's settings file - use it as a reference for *what* should be configurable,
   not as compilable source (see "Architecture gotchas").
