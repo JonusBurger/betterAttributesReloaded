@@ -139,6 +139,68 @@ namespace TestMod.Settings
             HintText = "Movement speed increase per point of Endurance: moveSpeed = baseMoveSpeed * (1 + bonusPerPoint * Endurance).")]
         public float MovementSpeedEnduranceBonusPerPoint { get; set; } = 0.02f;
 
+        [SettingPropertyGroup("Bonuses/Renown")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Cunning grants bonus renown from battle victories.")]
+        public bool RenownCunningBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Renown")]
+        [SettingPropertyBool("Player Only", Order = 1, RequireRestart = false,
+            HintText = "If enabled, only the player character's renown gain is affected. Otherwise every hero party leader (companions, lords, ...) benefits.")]
+        public bool RenownCunningBonusPlayerOnly { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Renown")]
+        [SettingPropertyFloatingInteger("Bonus per Cunning point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Renown gain increase per point of Cunning: renown = baseRenown * (1 + bonusPerPoint * Cunning).")]
+        public float RenownCunningBonusPerPoint { get; set; } = 0.02f;
+
+        [SettingPropertyGroup("Bonuses/Stability")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Endurance grants bonus ranged weapon aim stability.")]
+        public bool StabilityEnduranceBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Stability")]
+        [SettingPropertyBool("Player Only", Order = 1, RequireRestart = false,
+            HintText = "If enabled, only the player character's stability is affected. Otherwise every hero (companions, lords, ...) benefits.")]
+        public bool StabilityEnduranceBonusPlayerOnly { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Stability")]
+        [SettingPropertyFloatingInteger("Bonus per Endurance point", 0f, 0.2f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Time before aim becomes unsteady, increased per point of Endurance: unsteadyBeginTime = baseUnsteadyBeginTime * (1 + bonusPerPoint * Endurance).")]
+        public float StabilityEnduranceBonusPerPoint { get; set; } = 0.02f;
+
+        // New effect, no predecessor-mod reference - see CLAUDE.md "Architecture
+        // gotchas" for how the target model/method were found, and PrisonerRecruitmentSocialPatch
+        // for the reasoning behind the three-way scope (rather than a plain "Player Only"
+        // bool like every other effect so far).
+        [SettingPropertyGroup("Bonuses/Prisoner Recruitment")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Social speeds up prisoner recruitment (conformity gain).")]
+        public bool PrisonerRecruitmentSocialBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Prisoner Recruitment")]
+        [SettingPropertyDropdown("Applies To", Order = 1, RequireRestart = false,
+            HintText = "Which parties benefit: only the player's own party, any party led by a member of the player's clan (companions included), or every hero-led party in the game.")]
+        public Dropdown<string> PrisonerRecruitmentScopeDropdown { get; set; } = new Dropdown<string>(
+            new string[] { "Player Only", "Player's Clan", "All Lords" }, selectedIndex: 0);
+
+        [SettingPropertyGroup("Bonuses/Prisoner Recruitment")]
+        [SettingPropertyFloatingInteger("Bonus per Social point", 0.01f, 0.10f, "0.00%", Order = 2, RequireRestart = false,
+            HintText = "Prisoner conformity gain increase per point of Social: conformityGain = baseConformityGain * (1 + bonusPerPoint * Social).")]
+        public float PrisonerRecruitmentSocialBonusPerPoint { get; set; } = 0.02f;
+
+        // Hard player-only, no toggle at all - explicitly requested (no "extend to
+        // lords" option for this effect, unlike most others so far).
+        [SettingPropertyGroup("Bonuses/Prisoner Escape Prevention")]
+        [SettingPropertyBool("Enabled", Order = 0, RequireRestart = false, IsToggle = true,
+            HintText = "Whether Control reduces the chance a captured lord escapes from the player's own party.")]
+        public bool PrisonerEscapeControlBonusEnabled { get; set; } = true;
+
+        [SettingPropertyGroup("Bonuses/Prisoner Escape Prevention")]
+        [SettingPropertyFloatingInteger("Escape prevention chance per Control point", 0.01f, 0.10f, "0.00%", Order = 1, RequireRestart = false,
+            HintText = "Chance to prevent a captured lord's escape attempt entirely, per point of Control (capped at 100%).")]
+        public float PrisonerEscapeControlBonusPerPoint { get; set; } = 0.02f;
+
         public override string Id => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string DisplayName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
         public override string FolderName => base.GetType().Assembly.GetName().Name ?? nameof(TestMod);
