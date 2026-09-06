@@ -811,3 +811,42 @@ Builds clean on both `net472`/`net6`; deploy-copy timestamp confirmed.
 
 **Confirmed working in-game (2026-09-06):** attribute pop-ups show the expected bonus
 line(s). Consider this effect done.
+
+## 2026-09-06 - Added Melee Damage / Vigor effect; deviated from the provided reference
+
+`meleeDamage = baseMeleeDamage * (1 + MeleeDamageVigorBonusPerPoint * VIGOR)`. Default
+player-only, with a three-way "Applies To" dropdown (Player Only / Player's Clan / All
+Lords) - same shape as Prisoner Recruitment's scope setting.
+
+**Reference implementation provided** (predecessor mod's
+`MissionCombatMechanicsHelperPatch.ComputeBlowDamage`), but implemented against
+`MissionCombatMechanicsHelper.ComputeBlowMagnitude` instead - both signatures were
+re-verified via reflection against the installed game (v1.4.8) and neither has drifted
+(`ComputeBlowDamage` still matches the reference exactly). The deviation is precautionary,
+not signature-driven: `RangedDamageControlPatch`'s *first* implementation patched
+`ComputeBlowDamage` directly and froze the game in land combat (2026-09-01, no crash
+dump existed for a hang, exact mechanism never confirmed - see that entry). Rather than
+risk repeating an unconfirmed freeze on the same method for a second effect, Melee
+Damage reuses the already-proven-safe `ComputeBlowMagnitude` hook with an
+`IsMeleeWeapon` check (confirmed via reflection to exist alongside `IsRangedWeapon` on
+`WeaponComponentData`) instead of `RangedDamageControlPatch`'s `IsRangedWeapon` check.
+
+**Also deviated from the reference's damage formula.** The old mod computes
+`dmgBonus = (int)(bonusPerPoint * VIGOR + 1)` and multiplies the *integer* inflicted
+damage by it - with the default 2%/point and attribute values in this project's usual
+0-30 range, `bonusPerPoint * VIGOR` never reaches 1.0 until the cumulative bonus hits
+100%, so the `(int)` cast truncates it to 0 and the bonus does nothing below that
+threshold. This looks like an unintentional truncation bug in the old mod rather than
+deliberate design, so Melee Damage instead scales a `float` multiplier smoothly
+(`specialMagnitude *= 1 + bonusPerPoint * VIGOR`), matching every other percentage-style
+effect already in this project (Ranged Damage, Reload Speed, Movement Speed, ...).
+
+Per the newly-added CLAUDE.md convention, also added to
+`Patches/CharacterAttributeItemVMPatch.cs` (`EffectLine` entry, Vigor) and
+`Settings/EffectDisplayStrings.cs` (`MeleeDamageVigor`) as part of implementing the
+effect itself, not as a follow-up.
+
+Builds clean on both `net472`/`net6`; deploy-copy timestamp confirmed. **Not yet tested
+in-game** - given the Ranged Damage precedent, test this one specifically for a freeze
+(not just a crash) in land melee combat before considering it stable, in addition to
+checking the damage numbers themselves scale with Vigor as expected.

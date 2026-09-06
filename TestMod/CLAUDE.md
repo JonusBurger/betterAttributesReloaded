@@ -436,6 +436,13 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
   the effect on vs. off at a high Control value; needs a longer session than most effects
   to say anything meaningful). Don't treat "no crash" as "confirmed working" for this one.
 
+- **Melee Damage / Vigor (`MeleeDamageVigorPatch`) is new and not yet tested in-game at
+  all.** Builds clean; targets `ComputeBlowMagnitude` (not the reference's
+  `ComputeBlowDamage`) specifically because of the unresolved Ranged Damage freeze
+  history on that method - see bugHistory.md 2026-09-06. Test specifically for a freeze
+  (not just a crash) in land melee combat, and confirm damage numbers actually scale
+  with Vigor, before considering this stable.
+
 The character-sheet attribute tooltip display (`CharacterAttributeItemVMPatch`) was
 confirmed working in-game on 2026-09-06.
 
