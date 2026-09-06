@@ -258,6 +258,42 @@ actual DLLs rather than trusting old assumptions if the game/DLC updates.
   member of another class; `[HarmonyPatch(typeof(X), "MethodName")]` works regardless of
   visibility, since Harmony resolves it via reflection internally. `DefaultPersuasionModel.GetDefaultSuccessChance`
   is `private`/non-virtual (confirmed via reflection) - see `PersuasionCunningPatch`.
+- **When there's no predecessor-mod reference for an effect, find the right model by
+  reflecting on `TaleWorlds.CampaignSystem.dll` (or `.MountAndBlade.dll`) for types whose
+  name contains the game-mechanic keyword, then inspect that type's methods** - the same
+  technique used to find `DefaultClanTierModel` (Companion Limit) and
+  `DefaultBattleRewardModel` (Influence/Renown), applied here to find
+  `DefaultPrisonerRecruitmentCalculationModel` from "Prisoner". Bannerlord's own
+  vocabulary for a mechanic ("conformity" for prisoner recruitment progress) is often
+  more specific/different than how a task describes it in plain language - a vague task
+  hint pointing at the right vanilla term is a strong signal of where to look.
+- **Not every effect's scope is a binary "Player Only" toggle - check what the task
+  actually asks for before defaulting to that pattern.** Every effect so far used a
+  `bool` (player vs. every hero); `PrisonerRecruitmentSocialPatch` needed a three-way
+  choice (player / player's clan / every hero-led party), implemented as a
+  `Dropdown<string>` with `SelectedIndex` 0/1/2, matching the same `Dropdown<T>` pattern
+  used elsewhere for non-boolean settings (see the `SettingPropertyFloatingInteger`
+  step-size bullet above).
+- **A Bannerlord attribute name a task uses may not be real - the only six are Vigor,
+  Control, Endurance, Cunning, Social, Intelligence.** "Charisma" (asked for on
+  Prisoner Recruitment) isn't one of them; confirmed with the project owner that Social
+  (the actual people-skills attribute) was meant rather than guessing. Check any
+  attribute name against this list before writing `DefaultCharacterAttributes.X` - if it
+  doesn't compile, that's an obvious signal, but confirm which real attribute was
+  intended rather than picking one unilaterally.
+- **If the target method is `void` (or otherwise has no chance/`ExplainedNumber`/float
+  result to scale), use a Harmony prefix that probabilistically skips the whole call
+  instead - the same pattern `SliceThroughMomentumPatch` already uses on
+  `UpdateMomentumRemaining`.** `PrisonerEscapeControlPatch` does this on
+  `PrisonerReleaseCampaignBehavior.ApplyEscapeChanceToExceededPrisoners` (found by
+  reflecting on `TaleWorlds.CampaignSystem.dll` for identifiers containing "Escape" - the
+  only match in the assembly, and the technique described two bullets up for finding a
+  model with no predecessor-mod reference applies just as well to finding a
+  `CampaignBehaviorBase` method with no model at all). Rolling a "prevention chance" and
+  returning `false` on success doesn't reduce an underlying chance value (there isn't one
+  exposed to reduce) - it just means that particular application of vanilla's own chance
+  roll doesn't happen this cycle, which is statistically equivalent over repeated calls
+  but much harder to verify directly than a stat that shows up on a UI screen.
 
 ## Conventions
 
@@ -346,6 +382,23 @@ heroes? Ask before assuming either way for a new passive-bonus effect; for an
   given the identical, reflection-confirmed signature on all three
   `AgentStatCalculateModel` implementations, but not the same as an actual naval
   observation - try it there when convenient.
+- **Renown / Cunning (`RenownCunningPatch`) is new and not yet tested in-game at all.**
+  Builds clean; verify after a battle victory that renown gain is visibly higher than
+  vanilla with some points in Cunning.
+- **Stability / Endurance (`StabilityEndurancePatch`) is confirmed working in land
+  combat (2026-09-04), but not yet separately verified in a naval battle.** Same
+  low-risk situation as Reload Speed - try it there when convenient.
+- **Prisoner Escape Prevention / Control (`PrisonerEscapeControlPatch`) is only
+  partially checked: no crash/instability observed, but the actual effect (reduced
+  escape frequency) hasn't been functionally confirmed.** It's a probabilistic per-cycle
+  skip on a `void` method with no directly observable chance value, not a visible stat -
+  see bugHistory.md 2026-09-05/06 for what a practical test looks like (hold several
+  captured lords over multiple exceeded-capacity cycles, compare escape frequency with
+  the effect on vs. off at a high Control value; needs a longer session than most effects
+  to say anything meaningful). Don't treat "no crash" as "confirmed working" for this one.
+
+Prisoner Recruitment / Social was confirmed working on 2026-09-06.
+
 Movement Speed / Endurance was reported working on 2026-09-03.
 
 Influence / Intelligence was confirmed working in battle on 2026-09-02.

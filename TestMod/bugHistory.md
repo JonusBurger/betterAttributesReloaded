@@ -655,3 +655,112 @@ re-verify - **unlike the predecessor mod's reference, which only patches the lan
 (Sandbox) one.**
 
 **Reported working (2026-09-03).** Consider this effect done.
+
+## 2026-09-04 - Added Renown / Cunning effect; not yet tested
+
+`renownGain = baseRenownGain * (1 + bonusPerPoint * Cunning)`, default 2% per point,
+default player-only with an MCM toggle to extend to every hero party leader - matches
+the predecessor mod's reference default exactly (`Reference/MCMSettings.cs`
+`RenownBonus*`, already tied to Cunning - no attribute-default deviation needed this
+time, unlike Reload Speed/Movement Speed).
+
+**Same situation as `InfluenceIntelligencePatch`, same source file
+(`Reference/PatchExample.cs.txt`): confirmed via reflection *before* writing anything
+that the predecessor mod's reference signature for `CalculateRenownGain` is stale too**
+- it gained the same two extra parameters as `CalculateInfluenceGain` did
+(`renownMultiplierForWinnerSide`, `includeDescriptions`). This is exactly the scenario
+CLAUDE.md's "verify every time, even in the same file" rule was written for - checked
+proactively this time instead of finding out from a failed build.
+
+Only one concrete `BattleRewardModel` implementation, so a single patch covers it - same
+model `InfluenceIntelligencePatch` already patches, just a different method.
+
+**Not yet tested in-game at all.** Builds clean; verify after a battle victory that
+renown gain is visibly higher than vanilla with some points in Cunning.
+
+## 2026-09-04 - Added Stability / Endurance effect; not yet tested
+
+`unsteadyBeginTime = baseUnsteadyBeginTime * (1 + bonusPerPoint * Endurance)`, default 2%
+per point, default player-only with an MCM toggle to extend to every hero - matches the
+predecessor mod's reference shape (`Reference/MCMSettings.cs`, `StabilityBonus*`), which
+already defaulted this exact bonus to the Endurance attribute (no attribute-default
+deviation needed here, unlike Reload Speed/Movement Speed).
+
+Patches `UpdateAgentStats(Agent, AgentDrivenProperties)` - the same method
+`ReloadSpeedControlPatch`/`MovementSpeedEndurancePatch` already patch, multiplying
+`agentDrivenProperties.WeaponUnsteadyBeginTime` this time (a *larger* value means aim
+stays steady longer before swaying, i.e. more stability, matching the predecessor mod's
+own target property). Signature already confirmed on all three concrete
+`AgentStatCalculateModel` implementations from the Reload Speed effect, so patches all
+three without needing to re-verify - **unlike the predecessor mod's reference, which only
+patches the land (Sandbox) one.**
+
+**Confirmed working in land combat (2026-09-04).** Naval not yet separately tested -
+same low-risk situation as Reload Speed (identical, reflection-confirmed signature on
+all three models), but not an actual naval observation.
+
+## 2026-09-05 - Added Prisoner Recruitment / Social effect; not yet tested
+
+First effect with **no predecessor-mod reference at all** - designed from the task
+description plus its own hint ("this may be related to prisoner conformity").
+
+**Attribute name mismatch caught before writing anything:** the task said "Charisma",
+which isn't a real Bannerlord attribute (the six are Vigor/Control/Endurance/Cunning/
+Social/Intelligence). Asked the project owner rather than guessing - confirmed Social
+was meant (Bannerlord's actual people-skills stat).
+
+**Finding the mechanic:** reflected on `TaleWorlds.CampaignSystem.dll` for types with
+"Prisoner" in the name (same general technique as every other new-model search this
+project has done), which turned up
+`TaleWorlds.CampaignSystem.GameComponents.DefaultPrisonerRecruitmentCalculationModel`.
+The task's hint was exactly right: prisoners accumulate "conformity" over time while
+held, becoming recruitable once it reaches `GetConformityNeededToRecruitPrisoner`'s
+result - so "increase the rate prisoners can be recruited" means increasing
+`GetConformityChangePerHour(PartyBase, CharacterObject) : ExplainedNumber`, confirmed
+via reflection (v1.4.8) with only one concrete model implementation.
+
+`conformityGain = baseConformityGain * (1 + bonusPerPoint * Social)`, bonus per point
+configurable **1%-10%** (the task's own explicit range, not this project's usual 0-20%
+convention), default 2%.
+
+**Scope is a 3-way dropdown, not a "Player Only" bool** - the task explicitly asked for
+"Player (default) / PlayerClan-party / all Lords", a tier this project hasn't needed
+before. `PrisonerRecruitmentScopeDropdown` (`Dropdown<string>`, `SelectedIndex` 0/1/2)
+selects: only the player's own party (`leaderHero == Hero.MainHero`), any party led by a
+member of the player's clan including companion-led sub-parties
+(`leaderHero.Clan == Hero.MainHero.Clan`), or every hero-led party in the game (no check).
+
+**Confirmed working (2026-09-06):** conformity increase behaves as intended. Consider
+this effect done.
+
+## 2026-09-05 - Added Prisoner Escape Prevention / Control effect; not yet tested
+
+Another no-reference effect, found the same way as Prisoner Recruitment: reflected on
+`TaleWorlds.CampaignSystem.dll` for identifiers containing "Escape". Only one match in
+the whole assembly:
+`TaleWorlds.CampaignSystem.CampaignBehaviors.PrisonerReleaseCampaignBehavior.ApplyEscapeChanceToExceededPrisoners(CharacterObject, MobileParty)`
+- confirmed via reflection (v1.4.8) to be `private`, non-static, `void`. This appears to
+be the *only* place a captured hero's escape chance is rolled and applied at all,
+matching the task's own observation that only captured lords can escape.
+
+**No chance value to scale this time - the method is `void`, no `ExplainedNumber` or
+float return.** Implemented as a Harmony **prefix** that probabilistically skips the
+whole call on a successful "prevention roll"
+(`preventChance = min(1, bonusPerPoint * Control)`) - the same "skip the original on a
+successful roll" pattern `SliceThroughMomentumPatch` uses on `UpdateMomentumRemaining`.
+This doesn't reduce an underlying chance value (there isn't one exposed to reduce); it
+just means that particular escape-chance application doesn't happen this cycle, which is
+statistically equivalent to reduced escape chance over repeated calls.
+
+**Hard player-only, no toggle to extend to lords at all** - explicitly requested for
+this effect, unlike most others so far. Gated on `MobileParty.IsMainParty` (confirmed via
+reflection alongside the static `MobileParty.MainParty` - the instance property is
+cleaner for this check), so this only ever affects prisoners held in the player's own
+party specifically, not any other lord's, regardless of any future setting.
+
+**Partially checked (2026-09-06): no crash/instability observed with the patch active,
+but the actual effect (reduced escape frequency) hasn't been functionally confirmed yet**
+- the project owner noted this specific effect isn't easily testable in a normal play
+session (needs the longer, multi-cycle scenario described above). Stability is a good
+sign the prefix/skip logic itself isn't broken, but don't count this as "confirmed
+working" the way other effects are - only "confirmed not harmful."
