@@ -98,6 +98,18 @@ namespace TestMod.Patches
                         HardPlayerOnly,
                         v => EffectDisplayStrings.SliceThrough + Math.Min(1f, s.SliceThroughChancePerVigor * v).ToString("P0")),
 
+                    // Scope mirrors MeleeDamageVigorPatch's own 3-way dropdown exactly
+                    // (0 = Player Only, 1 = Player's Clan, 2 = All Lords).
+                    new EffectLine(DefaultCharacterAttributes.Vigor,
+                        () => s.MeleeDamageVigorBonusEnabled,
+                        h => s.MeleeDamageVigorScopeDropdown.SelectedIndex switch
+                        {
+                            0 => h.IsHumanPlayerCharacter,
+                            1 => Hero.MainHero != null && h.Clan != null && h.Clan == Hero.MainHero.Clan,
+                            _ => true,
+                        },
+                        v => EffectDisplayStrings.MeleeDamageVigor + (s.MeleeDamageVigorBonusPerPoint * v).ToString("P0")),
+
                     new EffectLine(DefaultCharacterAttributes.Control,
                         () => s.RangedDamageControlBonusEnabled,
                         h => PlayerOnlyOrAllHeroes(h, s.RangedDamageControlBonusPlayerOnly),

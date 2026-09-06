@@ -25,6 +25,7 @@ namespace TestMod.Settings
     public static class EffectDisplayStrings
     {
         public const string MaxHealthEndurance = "Increases max hit points by ";
+        public const string MeleeDamageVigor = "Increases melee damage by ";
         public const string SliceThrough = "Chance to slice through to a second target: ";
         public const string RangedDamageControl = "Increases ranged damage by ";
         public const string CompanionLimitSocial = "Increases companion limit by +";
